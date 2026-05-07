@@ -1,33 +1,122 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
 import { CarService } from './car.service';
 import { Car } from './car.entity';
-import { UpdateCarInput } from './dto/update-car.input';
 import { CreateCarInput } from './dto/create-car.input';
-import { FilterCarsInput } from './dto/filter-cars.input';
+import { UpdateCarInput } from './dto/update-car.input';
+import { CarFilterInput } from './dto/filter-cars.input';
+import { RecordCarViewInput } from './dto/record-car-view.input';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { UserRole } from '../user/enums/user-role.enum';
 
 @Resolver(() => Car)
 export class CarResolver {
   constructor(private readonly carService: CarService) {}
 
   @Query(() => [Car])
-  getAllCars(@Args('filter', { nullable: true }) filter?: FilterCarsInput): Promise<Car[]> {
-    return this.carService.findAll(filter);
+  getCars(
+    @Args('filters', { nullable: true }) filters?: CarFilterInput,
+  ): Promise<Car[]> {
+    return this.carService.findAll(filters);
+  }
+
+  @Query(() => Car)
+  getCarById(@Args('id') id: string): Promise<Car> {
+    return this.carService.findOne(id);
+  }
+
+  @Query(() => [Car])
+  getFeaturedCars(
+    @Args('limit', { type: () => Int, nullable: true, defaultValue: 10 }) limit: number,
+  ): Promise<Car[]> {
+    return this.carService.findFeatured(limit);
+  }
+
+  @Query(() => [Car])
+  @UseGuards(JwtAuthGuard)
+  getMyListings(@CurrentUser() user: { userId: string }): Promise<Car[]> {
+    return this.carService.findByUser(user.userId);
   }
 
   @Mutation(() => Car)
-  createCar(@Args('createCarInput') createCarInput: CreateCarInput): Promise<Car> {
-    return this.carService.create(createCarInput);
+  @UseGuards(JwtAuthGuard)
+  createCar(
+    @Args('input') input: CreateCarInput,
+    @CurrentUser() user: { userId: string },
+  ): Promise<Car> {
+    return this.carService.create(input, user.userId);
   }
 
   @Mutation(() => Car)
-  updateCar(@Args('updateCarInput') updateCarInput: UpdateCarInput): Promise<Car> {
-    return this.carService.update(updateCarInput);
+  @UseGuards(JwtAuthGuard)
+  updateCar(
+    @Args('id') id: string,
+    @Args('input') input: UpdateCarInput,
+    @CurrentUser() user: { userId: string },
+  ): Promise<Car> {
+    return this.carService.update(id, input, user.userId);
+  }
+
+  @Query(() => [Car], { name: 'getAllListings' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  getAllListings(): Promise<Car[]> {
+    return this.carService.findAllListings();
+  }
+
+  @Query(() => [Car], { name: 'getExpressSaleOpportunities' })
+  getExpressSaleOpportunities(
+    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
+    @Args('offset', { type: () => Int, nullable: true }) offset?: number,
+  ): Promise<Car[]> {
+    return this.carService.findExpressSale(limit, offset);
+  }
+
+  @Query(() => [String])
+  getCarMakes(): Promise<string[]> {
+    return this.carService.getDistinctMakes();
+  }
+
+  @Query(() => [String])
+  getCarModels(@Args('make') make: string): Promise<string[]> {
+    return this.carService.getModelsByMake(make);
+  }
+
+  @Query(() => [String])
+  getAllCarMakes(): Promise<string[]> {
+    return this.carService.getAllMakes();
+  }
+
+  @Query(() => [String])
+  getAllCarModels(@Args('make') make: string): Promise<string[]> {
+    return this.carService.getAllModels(make);
+  }
+
+  @Query(() => [Car])
+  getCarsByMake(
+    @Args('make') make: string,
+    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
+    @Args('offset', { type: () => Int, nullable: true }) offset?: number,
+  ): Promise<Car[]> {
+    return this.carService.findByMake(make, limit, offset);
+  }
+
+  @Mutation(() => Car)
+  recordCarView(
+    @Args('input') input: RecordCarViewInput,
+  ): Promise<Car> {
+    return this.carService.recordView(input.carId);
   }
 
   @Mutation(() => Boolean)
-  deleteCar(@Args('id') id: number): Promise<boolean> {
-    return this.carService.remove(id);
+  @UseGuards(JwtAuthGuard)
+  deleteCar(
+    @Args('id') id: string,
+    @CurrentUser() user: { userId: string },
+  ): Promise<boolean> {
+    return this.carService.remove(id, user.userId);
   }
 }
-
-
