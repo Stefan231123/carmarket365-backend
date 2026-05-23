@@ -2,9 +2,11 @@ import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nest
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Car } from './car.entity';
+import { CarImage } from '../car-image/car-image.entity';
 import { CreateCarInput } from './dto/create-car.input';
 import { UpdateCarInput } from './dto/update-car.input';
 import { CarFilterInput } from './dto/filter-cars.input';
+import { S3Service } from '../s3/s3.service';
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -20,12 +22,17 @@ export class CarService {
   constructor(
     @InjectRepository(Car)
     private carRepository: Repository<Car>,
+    @InjectRepository(CarImage)
+    private carImageRepository: Repository<CarImage>,
+    private readonly s3Service: S3Service,
   ) {}
 
   async create(input: CreateCarInput, sellerId: string): Promise<Car> {
-    const car = this.carRepository.create({ ...input, sellerId });
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+    const car = this.carRepository.create({ ...input, sellerId, expiresAt });
     const saved = await this.carRepository.save(car);
-    this.logger.log(`Car created: ${saved.id} by user ${sellerId}`);
+    this.logger.log(`Car created: ${saved.id} by user ${sellerId}, expires: ${expiresAt.toISOString()}`);
     return saved;
   }
 
@@ -228,5 +235,37 @@ export class CarService {
       take: clampLimit(limit),
       skip: offset ?? 0,
     });
+  }
+
+  async removeWithS3Cleanup(carId: string): Promise<void> {
+    const images = await this.carImageRepository.find({ where: { carId } });
+
+    await Promise.allSettled(
+      images
+        .filter(img => img.publicId && img.publicId.startsWith('images/'))
+        .flatMap(img => {
+          const thumbKey = img.publicId!.replace('images/', 'thumbnails/');
+          return [
+            this.s3Service.deleteObject(img.publicId!),
+            this.s3Service.deleteObject(thumbKey),
+          ];
+        }),
+    );
+
+    await this.carRepository.delete(carId);
+    this.logger.log(`Car ${carId} auto-deleted with S3 cleanup`);
+  }
+
+  async renewListing(carId: string, userId: string): Promise<Car> {
+    const car = await this.findOne(carId);
+    if (car.sellerId !== userId) {
+      throw new ForbiddenException('You can only renew your own listings');
+    }
+
+    const newExpiry = new Date();
+    newExpiry.setDate(newExpiry.getDate() + 30);
+    car.expiresAt = newExpiry;
+    car.expiryNotifiedAt = undefined;
+    return this.carRepository.save(car);
   }
 }

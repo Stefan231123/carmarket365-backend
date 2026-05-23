@@ -7,9 +7,15 @@ export class CreateCarImageInput {
   @IsUUID()
   carId!: string;
 
-  @Field()
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  s3Key?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
   @IsUrl()
-  url!: string;
+  url?: string;
 
   @Field({ nullable: true })
   @IsOptional()

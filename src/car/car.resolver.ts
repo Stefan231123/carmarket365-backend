@@ -119,4 +119,13 @@ export class CarResolver {
   ): Promise<boolean> {
     return this.carService.remove(id, user.userId);
   }
+
+  @Mutation(() => Car)
+  @UseGuards(JwtAuthGuard)
+  renewListing(
+    @Args('carId') carId: string,
+    @CurrentUser() user: { userId: string },
+  ): Promise<Car> {
+    return this.carService.renewListing(carId, user.userId);
+  }
 }

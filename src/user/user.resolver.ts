@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, ObjectType, Field } from '@nestjs/graphql';
 import { UserService } from './user.service';
 import { User } from './entities/user.entity';
 import { CreateUserInput } from './dto/create-user.input';
@@ -11,10 +11,24 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UserRole } from './enums/user-role.enum';
+import { S3Service } from '../s3/s3.service';
+import { ImageProcessorService } from '../s3/image-processor.service';
+@ObjectType()
+class AvatarUploadUrl {
+  @Field()
+  uploadUrl!: string;
+
+  @Field()
+  key!: string;
+}
 
 @Resolver(() => User)
 export class UserResolver {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly s3Service: S3Service,
+    private readonly imageProcessor: ImageProcessorService,
+  ) {}
 
   @Query(() => [User])
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -144,6 +158,32 @@ export class UserResolver {
   ): Promise<boolean> {
     await this.userService.updateProfile(currentUser.userId, { expoPushToken });
     return true;
+  }
+
+  @Mutation(() => AvatarUploadUrl)
+  @UseGuards(JwtAuthGuard)
+  async getAvatarUploadUrl(
+    @Args('fileName') fileName: string,
+    @CurrentUser() currentUser: any,
+  ): Promise<AvatarUploadUrl> {
+    // Reuse S3 presigned URL with userId as the "folder" key
+    return this.s3Service.getPresignedUploadUrl(`avatars/${currentUser.userId}`, fileName);
+  }
+
+  @Mutation(() => String, { name: 'processAvatar' })
+  @UseGuards(JwtAuthGuard)
+  async processAvatar(
+    @Args('s3Key') s3Key: string,
+    @CurrentUser() currentUser: any,
+  ): Promise<string> {
+    const rawBuffer = await this.s3Service.getObject(s3Key);
+    const processed = await this.imageProcessor.process(rawBuffer);
+    const baseName = s3Key.split('/').pop()!;
+    const finalKey = `avatars/${currentUser.userId}/${baseName}`;
+    const url = await this.s3Service.putObject(finalKey, processed.main, 'image/jpeg');
+    await this.s3Service.deleteObject(s3Key).catch(() => {});
+    await this.userService.updateProfile(currentUser.userId, { avatarUrl: url });
+    return url;
   }
 
   @Mutation(() => Boolean, { name: 'subscribeToMobileApp' })

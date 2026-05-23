@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, ObjectType, Field } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { CarImage } from './car-image.entity';
 import { CarImageService } from './car-image.service';
@@ -6,9 +6,28 @@ import { CreateCarImageInput } from './dto/create-car-image.input';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
+@ObjectType()
+class ImageUploadUrl {
+  @Field()
+  uploadUrl!: string;
+
+  @Field()
+  key!: string;
+}
+
 @Resolver(() => CarImage)
 export class CarImageResolver {
   constructor(private readonly carImageService: CarImageService) {}
+
+  @Mutation(() => ImageUploadUrl)
+  @UseGuards(JwtAuthGuard)
+  async getImageUploadUrl(
+    @Args('carId') carId: string,
+    @Args('fileName') fileName: string,
+    @CurrentUser() currentUser: any,
+  ): Promise<ImageUploadUrl> {
+    return this.carImageService.getPresignedUrl(carId, fileName, currentUser.userId);
+  }
 
   @Query(() => [CarImage], { name: 'getAllCarImages' })
   @UseGuards(JwtAuthGuard)

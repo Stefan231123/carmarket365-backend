@@ -14,6 +14,7 @@ import { CarImage } from '../car-image/car-image.entity';
 @Index(['sellerId'])
 @Index(['isAvailable', 'quickSale'])
 @Index(['countryCode'])
+@Index(['expiresAt'])
 export class Car {
   @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
@@ -179,6 +180,14 @@ export class Car {
   @Field(() => Date, { nullable: true })
   @Column({ nullable: true })
   soldAt?: Date;
+
+  @Field(() => Date, { nullable: true })
+  @Column({ nullable: true })
+  expiresAt?: Date;
+
+  @Field(() => Date, { nullable: true })
+  @Column({ nullable: true })
+  expiryNotifiedAt?: Date;
 
   @Field(() => Date)
   @CreateDateColumn()

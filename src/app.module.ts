@@ -11,14 +11,18 @@ import { CarModule } from './car/car.module';
 import { CarImageModule } from './car-image/car-image.module';
 import { SavedCarModule } from './saved-car/saved-car.module';
 import { CarInquiryModule } from './car-inquiry/car-inquiry.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ListingExpiryModule } from './listing-expiry/listing-expiry.module';
 import { HealthController } from './common/health.controller';
+import { PrivacyController } from './common/privacy.controller';
 
 @Module({
-  controllers: [HealthController],
+  controllers: [HealthController, PrivacyController],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 100,
@@ -70,6 +74,7 @@ import { HealthController } from './common/health.controller';
     CarImageModule,
     SavedCarModule,
     CarInquiryModule,
+    ListingExpiryModule,
   ],
 })
 export class AppModule {}
