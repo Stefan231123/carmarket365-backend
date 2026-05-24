@@ -19,7 +19,7 @@ export class SavedCar {
   @Column()
   carId!: string;
 
-  @ManyToOne(() => Car, { eager: true })
+  @ManyToOne(() => Car, { eager: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'carId' })
   @Field(() => Car)
   car!: Car;

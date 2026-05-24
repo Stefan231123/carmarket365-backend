@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Car } from './car.entity';
 import { CarImage } from '../car-image/car-image.entity';
+import { SavedCar } from '../saved-car/saved-car.entity';
 import { CreateCarInput } from './dto/create-car.input';
 import { UpdateCarInput } from './dto/update-car.input';
 import { CarFilterInput } from './dto/filter-cars.input';
@@ -24,6 +25,8 @@ export class CarService {
     private carRepository: Repository<Car>,
     @InjectRepository(CarImage)
     private carImageRepository: Repository<CarImage>,
+    @InjectRepository(SavedCar)
+    private savedCarRepository: Repository<SavedCar>,
     private readonly s3Service: S3Service,
   ) {}
 
@@ -252,6 +255,7 @@ export class CarService {
         }),
     );
 
+    await this.savedCarRepository.delete({ carId });
     await this.carRepository.delete(carId);
     this.logger.log(`Car ${carId} auto-deleted with S3 cleanup`);
   }
