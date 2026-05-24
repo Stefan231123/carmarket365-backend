@@ -55,9 +55,9 @@ export class CarResolver {
   updateCar(
     @Args('id') id: string,
     @Args('input') input: UpdateCarInput,
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { userId: string; role?: string },
   ): Promise<Car> {
-    return this.carService.update(id, input, user.userId);
+    return this.carService.update(id, input, user.userId, user.role);
   }
 
   @Query(() => [Car], { name: 'getAllListings' })
@@ -115,9 +115,9 @@ export class CarResolver {
   @UseGuards(JwtAuthGuard)
   deleteCar(
     @Args('id') id: string,
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { userId: string; role?: string },
   ): Promise<boolean> {
-    return this.carService.remove(id, user.userId);
+    return this.carService.remove(id, user.userId, user.role);
   }
 
   @Mutation(() => Car)

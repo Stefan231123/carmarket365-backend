@@ -144,22 +144,22 @@ export class CarService {
     });
   }
 
-  async update(id: string, input: UpdateCarInput, userId: string): Promise<Car> {
+  async update(id: string, input: UpdateCarInput, userId: string, role?: string): Promise<Car> {
     const car = await this.findOne(id);
-    if (car.sellerId !== userId) {
+    if (car.sellerId !== userId && role !== 'ADMIN') {
       throw new ForbiddenException('You can only update your own listings');
     }
     Object.assign(car, input);
     return this.carRepository.save(car);
   }
 
-  async remove(id: string, userId: string): Promise<boolean> {
+  async remove(id: string, userId: string, role?: string): Promise<boolean> {
     const car = await this.findOne(id);
-    if (car.sellerId !== userId) {
+    if (car.sellerId !== userId && role !== 'ADMIN') {
       throw new ForbiddenException('You can only delete your own listings');
     }
-    const result = await this.carRepository.delete(id);
-    return !!result.affected;
+    await this.removeWithS3Cleanup(id);
+    return true;
   }
 
   async getDistinctMakes(): Promise<string[]> {
