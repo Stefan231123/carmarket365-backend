@@ -187,8 +187,7 @@ export class CreateCarInput {
   @IsBoolean()
   quickSale?: boolean;
 
-  @Field({ nullable: true })
-  @IsOptional()
-  @IsBoolean()
-  isFeatured?: boolean;
+  // NOTE: isFeatured is intentionally NOT settable here (nor via UpdateCarInput,
+  // which extends this type) — featured placement is an admin/paid-promotion
+  // action, not something a seller can grant their own listing.
 }

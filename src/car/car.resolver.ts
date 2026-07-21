@@ -68,6 +68,8 @@ export class CarResolver {
   }
 
   @Query(() => [Car], { name: 'getExpressSaleOpportunities' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DEALER, UserRole.ADMIN)
   getExpressSaleOpportunities(
     @Args('limit', { type: () => Int, nullable: true }) limit?: number,
     @Args('offset', { type: () => Int, nullable: true }) offset?: number,
